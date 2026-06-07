@@ -1,0 +1,106 @@
+name: 'Maximize Runner Storage'
+description: 'Reclaims storage space on GitHub-hosted runners by removing non-essential software and adding a compressed Btrfs filesystem.'
+
+runs:
+  using: "composite"
+  steps:
+    - name: 'Remove non-essential packages, programs, and data'
+      shell: bash
+      run: |
+        # Load Btrfs kernel module for file system operations later
+        sudo modprobe btrfs
+
+        sudo apt-mark auto $(apt-mark showmanual)
+        sudo apt purge \
+          --allow-remove-essential \
+          --autoremove \
+          $(dpkg-query --show --showformat='${Priority} ${Package}\n' | \
+            grep --extended-regexp --invert-match "required|important" | \
+            awk '{print $2}')
+
+        sudo rm --recursive --force \
+          /etc/apparmor.d \
+          /etc/apt/sources.list.d/azure-cli.sources \
+          /etc/apt/sources.list.d/google-chrome.sources \
+          /etc/apt/sources.list.d/microsoft-prod.list \
+          /etc/cloud \
+          /etc/containers \
+          /etc/default/grub.d \
+          /etc/grub.d \
+          /etc/mysql \
+          /etc/needrestart \
+          /etc/netplan \
+          /etc/php \
+          /etc/sgml \
+          /etc/ssh \
+          /etc/xml \
+          /home/linuxbrew/ \
+          /home/runner/.* \
+          /opt/* \
+          /root/.* \
+          /usr/lib/modprobe.d \
+          /usr/lib/modules/* \
+          /usr/lib/shim \
+          /usr/lib/systemd/system-generators \
+          /usr/lib/systemd/user \
+          /usr/lib/systemd/user-generators \
+          /usr/local/* \
+          /usr/local/.* \
+          /usr/share/apache-maven-* \
+          /usr/share/az_* \
+          /usr/share/dotnet \
+          /usr/share/gradle-* \
+          /usr/share/java \
+          /usr/share/kotlinc \
+          /usr/share/miniconda \
+          /usr/share/php \
+          /usr/share/swift \
+          /var/lib/apt/* \
+          /var/lib/command-not-found \
+          /var/lib/docker \
+          /var/lib/gems \
+          /var/lib/libuuid \
+          /var/lib/mysql \
+          /var/lib/postgresql \
+          /var/lib/ubuntu-release-upgrader \
+          /var/lib/update-manager \
+          /var/lib/update-notifier \
+          /var/lib/waagent \
+          /var/log/* \
+          /var/www/html
+
+          sudo userdel --remove packer
+
+    - name: 'Create and mount Btrfs image'
+      shell: bash
+      run: |
+        sudo apt update
+        sudo apt install --yes btrfs-progs
+
+        # Calculate free space and image size (free space minus 1 GiB)
+        FREE_BYTES=$(df --output=avail --block-size=1 / | tail --lines=1)
+        IMAGE_SIZE=$(( FREE_BYTES - 1073741824 ))
+
+        sudo truncate --size="$IMAGE_SIZE" /btrfs.img
+
+        sudo mkfs.btrfs -m single /btrfs.img
+
+        sudo mkdir --parents /mnt/btrfs
+        sudo mount --options=loop,noatime,compress-force=zstd:3 /btrfs.img /mnt/btrfs
+
+        sudo mkdir --parents /mnt/btrfs/usr/local
+        sudo chown --reference=/usr/local /mnt/btrfs/usr/local
+        sudo chmod --reference=/usr/local /mnt/btrfs/usr/local
+        sudo mount --bind /mnt/btrfs/usr/local /usr/local
+
+        sudo mkdir --parents /mnt/btrfs/opt
+        sudo chown --reference=/opt /mnt/btrfs/opt
+        sudo chmod --reference=/opt /mnt/btrfs/opt
+        sudo mount --bind /mnt/btrfs/opt /opt
+
+        sudo rm --recursive --force $GITHUB_WORKSPACE/*
+
+        sudo mkdir --parents /mnt/btrfs/workspace
+        sudo chown --reference="$GITHUB_WORKSPACE" /mnt/btrfs/workspace
+        sudo chmod --reference="$GITHUB_WORKSPACE" /mnt/btrfs/workspace
+        sudo mount --bind /mnt/btrfs/workspace "$GITHUB_WORKSPACE"
