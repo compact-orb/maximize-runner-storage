@@ -10,6 +10,12 @@ inputs:
       GITHUB_WORKSPACE)
     required: false
     default: ''
+  create-filesystem:
+    description: >-
+      Whether to create and mount a compressed Btrfs filesystem (defaults to
+      true)
+    required: false
+    default: 'true'
 
 runs:
   using: "composite"
@@ -110,6 +116,7 @@ runs:
         sudo userdel --remove packer
 
     - name: 'Create and mount Btrfs image'
+      if: inputs.create-filesystem != 'false'
       shell: bash
       run: |
         sudo apt update
