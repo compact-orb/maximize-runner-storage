@@ -6,7 +6,7 @@ A GitHub Action that reclaims storage space on GitHub-hosted runners by removing
 
 1. **Removes non-essential packages, programs, and data** — Purges APT packages, build tools, SDKs, and cached data that are pre-installed on the runner.
 
-2. **Creates and mounts a Btrfs image** — Allocates the freed space into a Btrfs image with `zstd` compression, then mounts it over `/usr/local`, `/opt`, and `$GITHUB_WORKSPACE` (or a custom `destination`) for transparent compression.
+2. **Creates and mounts a Btrfs image** — Allocates the freed space into a Btrfs image with `zstd` compression, then mounts it over `/usr/local` and `$GITHUB_WORKSPACE` (or a custom `destination`) for transparent compression.
 
 ## Usage
 

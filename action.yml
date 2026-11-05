@@ -25,35 +25,15 @@ runs:
       run: |
         sudo modprobe btrfs
 
-        sudo_pkgs=$(dpkg-query --show \
-          --showformat='${db:Status-Status} ${Package}\n' | \
-          grep --extended-regexp "^installed sudo" | \
-          awk '{print $2}')
-        if [[ -n "${sudo_pkgs}" ]]; then
-          sudo apt-mark manual ${sudo_pkgs}
-          sudo apt-mark hold ${sudo_pkgs}
-        fi
-
-        auto_pkgs=$(apt-mark showmanual | \
-          grep --extended-regexp --invert-match "^(sudo|node)")
-        if [[ -n "${auto_pkgs}" ]]; then
-          sudo apt-mark auto ${auto_pkgs}
-        fi
-
         purge_pkgs=$(dpkg-query --show \
           --showformat='${Priority} ${Package}\n' | \
-          grep --extended-regexp --invert-match "required|important" | \
-          awk '{print $2}' | \
-          grep --extended-regexp --invert-match "^(sudo|node)")
+          awk '$1 !~ /^(required|important)$/ && $2 !~ /^(sudo|node)/ {print $2}')
         if [[ -n "${purge_pkgs}" ]]; then
-          sudo apt purge \
+          sudo DEBIAN_FRONTEND=noninteractive apt purge \
             --allow-remove-essential \
             --autoremove \
+            --yes \
             ${purge_pkgs}
-        fi
-
-        if [[ -n "${sudo_pkgs}" ]]; then
-          sudo apt-mark unhold ${sudo_pkgs}
         fi
 
         sudo rm --recursive --force \
@@ -113,20 +93,20 @@ runs:
           /var/log/* \
           /var/www/html
 
-        sudo userdel --remove packer
+        sudo userdel --remove packer || true
 
     - name: 'Create and mount Btrfs image'
       if: inputs.create-filesystem != 'false'
       shell: bash
       run: |
         sudo apt update
-        sudo apt install --yes btrfs-progs
+        sudo DEBIAN_FRONTEND=noninteractive apt install \
+          --no-install-recommends --yes btrfs-progs
 
         free_bytes=$(df --output=avail --block-size=1 / | tail --lines=1)
         image_size=$(( free_bytes - 1073741824 ))
 
         sudo truncate --size="${image_size}" /btrfs.img
-
         sudo mkfs.btrfs -m single /btrfs.img
 
         sudo mkdir --parents /mnt/btrfs
@@ -135,8 +115,6 @@ runs:
           /btrfs.img /mnt/btrfs
 
         sudo mkdir --parents /mnt/btrfs/usr/local /usr/local
-        sudo chown --reference=/usr/local /mnt/btrfs/usr/local
-        sudo chmod --reference=/usr/local /mnt/btrfs/usr/local
         sudo mount --bind /mnt/btrfs/usr/local /usr/local
         sudo mkdir --parents /usr/local/bin
 
@@ -151,14 +129,8 @@ runs:
           sudo mkdir --parents "${target_dest}"
         fi
 
-        runner_user=$(id --user --name)
-        runner_group=$(id --group --name)
-
         if [[ "${target_dest}" != "/mnt/btrfs" ]]; then
           sudo mkdir --parents /mnt/btrfs/workspace
-          sudo chown --reference="${target_dest}" /mnt/btrfs/workspace
-          sudo chmod --reference="${target_dest}" /mnt/btrfs/workspace
           sudo mount --bind /mnt/btrfs/workspace "${target_dest}"
-          sudo chown --recursive \
-            "${runner_user}:${runner_group}" "${target_dest}"
+          sudo chown --recursive "$(id -u):$(id -g)" "${target_dest}"
         fi
