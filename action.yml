@@ -27,7 +27,9 @@ runs:
 
         purge_pkgs=$(dpkg-query --show \
           --showformat='${Priority} ${Package}\n' | \
-          awk '$1 !~ /^(required|important)$/ && $2 !~ /^(sudo|node)/ {print $2}')
+          awk '$1 !~ /^(required|important)$/ && $2 !~ /^(sudo|node)/ {
+            print $2
+          }')
         if [[ -n "${purge_pkgs}" ]]; then
           sudo DEBIAN_FRONTEND=noninteractive apt purge \
             --allow-remove-essential \
@@ -107,7 +109,7 @@ runs:
         image_size=$(( free_bytes - 1073741824 ))
 
         sudo truncate --size="${image_size}" /btrfs.img
-        sudo mkfs.btrfs -m single /btrfs.img
+        sudo mkfs.btrfs --metadata single /btrfs.img
 
         sudo mkdir --parents /mnt/btrfs
         sudo mount \
@@ -132,5 +134,5 @@ runs:
         if [[ "${target_dest}" != "/mnt/btrfs" ]]; then
           sudo mkdir --parents /mnt/btrfs/workspace
           sudo mount --bind /mnt/btrfs/workspace "${target_dest}"
-          sudo chown --recursive "$(id -u):$(id -g)" "${target_dest}"
+          sudo chown --recursive "$(id --user):$(id --group)" "${target_dest}"
         fi
