@@ -1,0 +1,22 @@
+name: Test Maximize Runner Storage
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test Action
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Maximize Runner Storage
+        uses: ./
+
+      - name: Verify Kernel Modules
+        run: |
+          test -d "/usr/lib/modules/$(uname --kernel-release)"
+          sudo modprobe --verbose dummy
+          sudo modprobe --verbose veth
+          sudo modprobe --verbose br_netfilter
+          lsmod | grep --extended-regexp "^(br_netfilter|dummy|veth)"

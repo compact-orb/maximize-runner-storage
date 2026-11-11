@@ -18,7 +18,7 @@ installing dependencies:
 
 ```yaml
 steps:
-  - uses: compact-orb/maximize-runner-storage@v3
+  - uses: compact-orb/maximize-runner-storage@v4
 
   - uses: actions/checkout@v7
 ```
@@ -30,7 +30,7 @@ onto the compressed Btrfs filesystem:
 
 ```yaml
 steps:
-  - uses: compact-orb/maximize-runner-storage@v3
+  - uses: compact-orb/maximize-runner-storage@v4
     with:
       additional-mounts: /var/lib/docker
 

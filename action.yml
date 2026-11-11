@@ -41,11 +41,9 @@ runs:
     - name: 'Remove non-essential packages, programs, and data'
       shell: bash
       run: |
-        sudo modprobe btrfs
-
         purge_pkgs=$(dpkg-query --show \
           --showformat='${Priority} ${Package}\n' | \
-          awk '$1 !~ /^(required|important)$/ && $2 !~ /^(sudo|node)/ {
+          awk '$1 !~ /^(required|important)$/ && $2 !~ /^(linux|node|sudo)/ {
             print $2
           }')
         if [[ -n "${purge_pkgs}" ]]; then
@@ -82,8 +80,6 @@ runs:
           /opt/microsoft \
           /opt/pipx \
           /root/.* \
-          /usr/lib/modprobe.d \
-          /usr/lib/modules/* \
           /usr/lib/shim \
           /usr/lib/systemd/system-generators \
           /usr/lib/systemd/user \
