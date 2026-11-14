@@ -1,19 +1,22 @@
 # maximize-runner-storage
 
-A GitHub Action that reclaims storage space on GitHub-hosted runners by removing
-non-essential software and adding a compressed Btrfs filesystem.
+A GitHub Action that frees disk space on GitHub-hosted runners by removing
+pre-installed software and creating a compressed Btrfs filesystem.
 
 ## What It Does
 
-1. **Removes non-essential packages, programs, and data** — Purges APT packages,
-   build tools, SDKs, and cached data that are pre-installed on the runner.
-2. **Creates and mounts a Btrfs image** — Allocates the freed space into a loop
-   Btrfs image with transparent `zstd:3` compression, mounted over `/usr/local`,
-   `$GITHUB_WORKSPACE`, and any configured additional paths.
+1. **Removes pre-installed packages, tools, and data** — Purges APT packages
+   not marked `required` or `important` (except `linux*`, `node*`, and `sudo*`),
+   deletes pre-installed toolchains, caches, and logs, and removes the `packer`
+   user.
+2. **Creates and mounts a Btrfs image** — Creates a Btrfs image file
+   (`/btrfs.img`) using the free disk space minus 1 GiB, mounts it with `zstd:3`
+   compression, and bind-mounts `/usr/local`, `$GITHUB_WORKSPACE`, and any
+   paths in `additional-mounts`.
 
 ## Usage
 
-Add the action as the **first step** in your job, before checking out code or
+Add this action as the **first step** in your job, before checking out code or
 installing dependencies:
 
 ```yaml
@@ -25,8 +28,8 @@ steps:
 
 ### Additional Mounts
 
-To bind-mount additional directories (such as Docker storage or cache paths)
-onto the compressed Btrfs filesystem:
+To mount extra directories (such as Docker storage or cache directories) on the
+compressed Btrfs filesystem:
 
 ```yaml
 steps:
@@ -41,11 +44,11 @@ steps:
 
 | Input | Description | Default |
 | --- | --- | --- |
-| `additional-mounts` | Newline-separated list of paths to mount | `''` |
-| `create-filesystem` | Whether to create and mount Btrfs | `'true'` |
-| `mount-usr-local` | Whether to mount `/usr/local` on Btrfs | `'true'` |
-| `mount-workspace` | Whether to mount `$GITHUB_WORKSPACE` on Btrfs | `'true'` |
+| `additional-mounts` | Space- or newline-separated list of extra directories to mount | `''` |
+| `create-filesystem` | Create and mount the compressed Btrfs filesystem | `'true'` |
+| `mount-usr-local` | Mount `/usr/local` on the Btrfs filesystem | `'true'` |
+| `mount-workspace` | Mount `$GITHUB_WORKSPACE` on the Btrfs filesystem | `'true'` |
 
 > [!IMPORTANT]
-> This action **must** run before `actions/checkout` because it initializes
-> `$GITHUB_WORKSPACE`.
+> This action **must** run before `actions/checkout` because it deletes the
+> contents of `$GITHUB_WORKSPACE` before mounting.
